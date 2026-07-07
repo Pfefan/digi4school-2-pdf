@@ -4,6 +4,7 @@ import os
 import shutil
 import time
 import requests
+import re
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -25,22 +26,38 @@ class BookDataRetriever:
         os.makedirs('download', exist_ok=True)
 
     def get_book_list(self, session: requests.Session):
-        books = []
         if session is None or ('ad_session_id' not in session.cookies and 'digi4s' not in session.cookies):
             raise RuntimeError("Session is not initialized or user is not authenticated.")
 
-        response = session.get(self.books_list_url, timeout=5)
+        response = session.get("https://digi4school.at/br/xhr/v2/synch", timeout=10)
+        response.raise_for_status()
 
-        soup = BeautifulSoup(response.content, 'html.parser')
-        shelf_div = soup.find(id='shelf')
-        a_tags = shelf_div.find_all('a')
+        payload = response.json()
+        books = []
+        for item in payload.get('books', []):
+            book_id = item.get('id')
+            book_code = item.get('code')
+            book_title = item.get('title')
 
-        for a_tag in a_tags:
+            if book_id is None or not book_code or not book_title:
+                continue
+
+            books.append((str(book_id), book_code, str(book_title).strip(), f"/ebook/{book_code}"))
+
+        return books
+
+    def _parse_books_from_html(self, html: str):
+        soup = BeautifulSoup(html, 'html.parser')
+        books = []
+
+        for a_tag in soup.select('a[data-id][data-code]'):
             data_id = a_tag.get('data-id')
             data_code = a_tag.get('data-code')
-            book_title = a_tag.find('h1').text
-            href = a_tag.get('href')
-            books.append((data_id, data_code, book_title, href))
+            title_tag = a_tag.select_one('h1, h2, .title, [class*="title"]')
+            book_title = title_tag.get_text(strip=True) if title_tag else a_tag.get_text(" ", strip=True)
+            href = a_tag.get('href') or a_tag.get('routerlink')
+            if data_id and data_code:
+                books.append((data_id, data_code, book_title or "<missing-title>", href))
 
         return books
 

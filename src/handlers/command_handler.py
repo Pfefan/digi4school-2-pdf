@@ -11,7 +11,7 @@ class CommandHandler:
     def __init__(self) -> None:
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0'
         })
         self.auth = AuthAndTokenHandler()
         self.digi4school = BookDataRetriever()
